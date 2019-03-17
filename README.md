@@ -3,7 +3,7 @@
 DCASE2019 Task5 Urban Sound Tagging is a task to predict tags of audio recordings recorded from urban acoustic sensors. The task includes a fine-grained classification of 23 sound classes and a coarse-grained classification 8 sound classes. More description of this task can be found in http://dcase.community/challenge2019/task-urban-sound-tagging. 
 
 ## DATASET
-The dataset can be downloaded from http://dcase.community/challenge2019/task-urban-sound-tagging. Each audio recording is monophonic, 10-second in length, and with a sample rate of 44.1 kHz. The statistic of the data is shown below:
+The dataset can be downloaded from http://dcase.community/challenge2019/task-urban-sound-tagging. All audio recordings are approximately 10-second, single-channel and with a sample rate of 44.1 kHz. The statistic of the data is shown below:
 
 |      | Train | Validate | Evaluation |
 |:----:|:-----:|:--------:|:----------:|
@@ -72,9 +72,10 @@ Model saved to /vol/vssp/msos/qk/workspaces/dcase2019_task5/models/main/logmel_6
 
 ## Results
 
-|     | Fine classes mAP | Coarse classes mAP |
-|:---:|:----------------:|:------------------:|
-| mAP |       0.360      |        0.534       |
+|                 | Fine classes mAP | Coarse classes mAP |
+|:---------------:|:----------------:|:------------------:|
+| *Official result* |         -        |          -         |
+| mAP             |       0.360      |        0.534       |
 
 
 ## Summary
