@@ -75,11 +75,11 @@ def train(args):
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
         'train.h5')
         
-    models_dir = os.path.join(workspace, 'models', filename, 
+    checkpoints_dir = os.path.join(workspace, 'checkpoints', filename, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
         'taxonomy_level={}'.format(taxonomy_level), 
         'holdout_fold={}'.format(holdout_fold))
-    create_folder(models_dir)
+    create_folder(checkpoints_dir)
     
     logs_dir = os.path.join(workspace, 'logs', filename, args.mode, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
@@ -162,7 +162,7 @@ def train(args):
                 'optimizer': optimizer.state_dict()}
 
             checkpoint_path = os.path.join(
-                models_dir, 'md_{}_iters.pth'.format(iteration))
+                checkpoints_dir, '{}_iters.pth'.format(iteration))
                 
             torch.save(checkpoint, checkpoint_path)
             logging.info('Model saved to {}'.format(checkpoint_path))
@@ -204,10 +204,11 @@ def inference_validation(args):
     Args: 
       dataset_dir: string, directory of dataset
       workspace: string, directory of workspace
+      taxonomy_level: 'fine' | 'coarse'
       model_type: string, e.g. 'Cnn_9layers'
       iteration: int
-      holdout_fold: '1' | None, where '1' indicates using validation and 'None'
-          indicates using full data for training
+      holdout_fold: '1' | 'none', where '1' indicates using validation and 
+          'none' indicates using full data for training
       batch_size: int
       cuda: bool
       mini_data: bool, set True for debugging on a small part of data
@@ -251,10 +252,10 @@ def inference_validation(args):
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
         'train.h5')
         
-    model_path = os.path.join(workspace, 'models', filename, 
+    model_path = os.path.join(workspace, 'checkpoints', filename, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
         'taxonomy_level={}'.format(taxonomy_level), 
-        'holdout_fold={}'.format(holdout_fold), 'md_{}_iters.pth'.format(iteration))
+        'holdout_fold={}'.format(holdout_fold), '{}_iters.pth'.format(iteration))
     
     logs_dir = os.path.join(workspace, 'logs', filename, args.mode, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
@@ -311,7 +312,7 @@ if __name__ == '__main__':
     parser_train.add_argument('--workspace', type=str, required=True)
     parser_train.add_argument('--taxonomy_level', type=str, choices=['fine', 'coarse'], required=True)
     parser_train.add_argument('--model_type', type=str, required=True)
-    parser_train.add_argument('--holdout_fold', type=str, choices=['1', 'None'], required=True)
+    parser_train.add_argument('--holdout_fold', type=str, choices=['1', 'none'], required=True)
     parser_train.add_argument('--batch_size', type=int, required=True)
     parser_train.add_argument('--cuda', action='store_true', default=False)
     parser_train.add_argument('--mini_data', action='store_true', default=False)
