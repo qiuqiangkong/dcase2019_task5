@@ -48,21 +48,24 @@ def forward(model, generate_func, cuda, return_input=False,
             model.eval()
             batch_output = model(batch_feature)
 
-        append_to_dict(output_dict, 'audio_name', batch_data_dict['audio_name'])
+        append_to_dict(dict=output_dict, key='audio_name', 
+            value=batch_data_dict['audio_name'])
         
-        append_to_dict(output_dict, 'output', batch_output.data.cpu().numpy())
+        append_to_dict(dict=output_dict, key='output', 
+            value=batch_output.data.cpu().numpy())
             
         if return_input:
-            append_to_dict(output_dict, 'feature', batch_data_dict['feature'])
+            append_to_dict(dict=output_dict, key='feature', 
+                value=batch_data_dict['feature'])
             
         if return_target:
             if 'fine_target' in batch_data_dict.keys():
-                append_to_dict(output_dict, 'fine_target', 
-                    batch_data_dict['fine_target'])
+                append_to_dict(dict=output_dict, key='fine_target', 
+                    value=batch_data_dict['fine_target'])
                 
             if 'coarse_target' in batch_data_dict.keys():
-                append_to_dict(output_dict, 'coarse_target', 
-                    batch_data_dict['coarse_target'])
+                append_to_dict(dict=output_dict, key='coarse_target', 
+                    value=batch_data_dict['coarse_target'])
                 
     for key in output_dict.keys():
         output_dict[key] = np.concatenate(output_dict[key], axis=0)
