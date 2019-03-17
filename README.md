@@ -3,7 +3,7 @@
 DCASE2019 Task5 Urban Sound Tagging is a task to predict tags of audio recordings recorded from urban acoustic sensors. The task includes a fine-grained classification of 23 sound classes and a coarse-grained classification 8 sound classes. More description of this task can be found in http://dcase.community/challenge2019/task-urban-sound-tagging. 
 
 ## DATASET
-The dataset can be downloaded from http://dcase.community/challenge2019/task-urban-sound-tagging. Each audio recording is 10-second in length. The statistic of the data is shown below:
+The dataset can be downloaded from http://dcase.community/challenge2019/task-urban-sound-tagging. Each audio recording is monophonic, 10-second in length, and with a sample rate of 44.1 kHz. The statistic of the data is shown below:
 
 |      | Train | Validate | Evaluation |
 |:----:|:-----:|:--------:|:----------:|
@@ -51,10 +51,7 @@ Or run the commands in runme.sh line by line. The commands includes:
 (4) Inference
 
 ## Model
-We apply convolutional neural networks using the log mel spectrogram audio as input. The outputs represents the presence probability of sound classes. 
-
-## Results
-To train a CNN with 9 layers and a mini-batch size of 32, the training takes approximately 200 ms / iteration on a single card GTX Titan Xp GPU. The model is trained for 5000 iterations. The training looks like:
+We apply convolutional neural networks using the log mel spectrogram audio as input. The outputs represents the presence probability of sound classes. To train a CNN with 9 layers and a mini-batch size of 32, the training takes approximately 200 ms / iteration on a single card GTX Titan Xp GPU. The model is trained for 5000 iterations. The training looks like:
 
 <pre>
 Load data time: 2.499 s
@@ -68,13 +65,12 @@ train mAP: 1.000
 validate mAP: 0.360
 Train time: 39.336 s, validate time: 5.301 s
 Model saved to /vol/vssp/msos/qk/workspaces/dcase2019_task5/models/main/logmel_64frames_64melbins/taxonomy_level=fine/holdout_fold=1/md_5000_iters.pth
-
 ------------------------------------
 ...
 </pre>
 
 
-**Validation result**
+## Results
 
 |     | Fine classes mAP | Coarse classes mAP |
 |:---:|:----------------:|:------------------:|
