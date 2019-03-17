@@ -91,7 +91,7 @@ def read_metadata(metadata_path, data_type, mini_data):
     Returns:
       meta_dict
     '''
-    
+
     fine_labels = config.fine_labels
     fine_classes_num = config.fine_classes_num
     fine_lb_to_idx = config.fine_lb_to_idx
@@ -104,7 +104,8 @@ def read_metadata(metadata_path, data_type, mini_data):
     df = pd.read_csv(metadata_path, sep=',')
     df = df[df['split'] == data_type].reset_index()
     
-    # Remove duplicate names
+    # Each audio may be annotated by multiple labelers. So remove duplicate 
+    # audio names. 
     audio_names = np.array(sorted(list(set(df['audio_filename']))))
     
     if mini_data:
@@ -126,13 +127,14 @@ def read_metadata(metadata_path, data_type, mini_data):
             for fine_label in fine_labels:
                 class_idx = fine_lb_to_idx[fine_label]
                 label_type = '{}_presence'.format(fine_label)
-                fine_target[class_idx] += \df.iloc[index][label_type]
+                fine_target[class_idx] += df.iloc[index][label_type]
             
             for coarse_label in coarse_labels:
                 class_idx = coarse_lb_to_idx[coarse_label]
                 label_type = '{}_presence'.format(coarse_label)
                 coarse_target[class_idx] += df.iloc[index][label_type]
                 
+        # Annotation of an audio is the average annotation of multiple labelrs
         fine_target /= len(indexes)
         coarse_target /= len(indexes)
         
@@ -205,7 +207,7 @@ def calculate_feature_for_all_audio_files(args):
     
     meta_dict = read_metadata(metadata_path, data_type, mini_data)
     
-    # Hdf5 file for storing features and targets
+    # Hdf5 containing features and targets
     hf = h5py.File(feature_path, 'w')
 
     hf.create_dataset(
