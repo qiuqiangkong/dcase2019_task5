@@ -77,7 +77,7 @@ def train(args):
         
     checkpoints_dir = os.path.join(workspace, 'checkpoints', filename, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
-        'taxonomy_level={}'.format(taxonomy_level), 
+        model_type, 'taxonomy_level={}'.format(taxonomy_level), 
         'holdout_fold={}'.format(holdout_fold))
     create_folder(checkpoints_dir)
     
@@ -254,7 +254,7 @@ def inference_validation(args):
         
     checkpoint_path = os.path.join(workspace, 'checkpoints', filename, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
-        'taxonomy_level={}'.format(taxonomy_level), 
+        model_type, 'taxonomy_level={}'.format(taxonomy_level), 
         'holdout_fold={}'.format(holdout_fold), '{}_iterations.pth'.format(iteration))
     
     logs_dir = os.path.join(workspace, 'logs', filename, args.mode, 
