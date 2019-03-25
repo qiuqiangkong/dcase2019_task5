@@ -108,3 +108,26 @@ def get_labels(taxonomy_level):
         raise Exception('Incorrect argument!')
         
     return dict
+
+
+def write_submission_csv(audio_names, outputs, taxonomy_level, submission_path):
+    fine_labels = config.fine_labels
+    coarse_labels = config.coarse_labels
+    
+    f = open(submission_path, 'w')
+    
+    head = ','.join(['audio_filename'] + fine_labels + coarse_labels)
+    f.write('{}\n'.format(head))
+    
+    for n, audio_name in enumerate(audio_names):
+        
+        if taxonomy_level == 'fine':
+            line = ','.join([audio_name] + list(map(str, outputs[n])) + ['0.'] * len(coarse_labels))
+        elif taxonomy_level == 'coarse':
+            line = ','.join([audio_name] + ['0.'] * len(fine_labels) + list(map(str, outputs[n])))
+        else:
+            raise Exception('Incorrect argument!')
+            
+        f.write('{}\n'.format(line))
+
+    f.close()

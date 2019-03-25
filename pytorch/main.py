@@ -16,7 +16,7 @@ import torch.optim as optim
 from utilities import (create_folder, get_filename, create_logging, 
     load_scalar, get_labels)
 from data_generator import DataGenerator
-from models import Cnn_9layers
+from models import Cnn_9layers_MaxPooling, Cnn_9layers_AvgPooling, Cnn_13layers_AvgPooling
 from losses import binary_cross_entropy
 from evaluate import Evaluator
 from pytorch_utils import move_data_to_gpu
@@ -30,7 +30,7 @@ def train(args):
       dataset_dir: string, directory of dataset
       workspace: string, directory of workspace
       taxonomy_level: 'fine' | 'coarse'
-      model_type: string, e.g. 'Cnn_9layers'
+      model_type: string, e.g. 'Cnn_9layers_MaxPooling'
       holdout_fold: '1' | 'None', where '1' indicates using validation and 
           'None' indicates using full data for training
       batch_size: int
@@ -81,6 +81,22 @@ def train(args):
         'holdout_fold={}'.format(holdout_fold))
     create_folder(checkpoints_dir)
     
+    _temp_submission_path = os.path.join(workspace, '_temp_submissions', filename, 
+        '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
+        model_type, 'taxonomy_level={}'.format(taxonomy_level), 
+        'holdout_fold={}'.format(holdout_fold), '_submission.csv')
+    create_folder(os.path.dirname(_temp_submission_path))
+    
+    statistics_path = os.path.join(workspace, 'statistics', filename, 
+        '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
+        model_type, 'taxonomy_level={}'.format(taxonomy_level), 
+        'holdout_fold={}'.format(holdout_fold), 'statistics.pickle')
+    create_folder(os.path.dirname(statistics_path))
+    
+    annotation_path = os.path.join(dataset_dir, 'annotations.csv')
+    
+    yaml_path = os.path.join(dataset_dir, 'dcase-ust-taxonomy.yaml')
+    
     logs_dir = os.path.join(workspace, 'logs', filename, args.mode, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
         'taxonomy_level={}'.format(taxonomy_level), 
@@ -115,6 +131,7 @@ def train(args):
         model=model, 
         data_generator=data_generator, 
         taxonomy_level=taxonomy_level, 
+        statistics_path=statistics_path, 
         cuda=cuda, 
         verbose=False)
     
@@ -126,23 +143,25 @@ def train(args):
         
         # Evaluate
         if iteration % 200 == 0:
-
             logging.info('------------------------------------')
-            logging.info('Iteration: {}'.format(iteration))
+            logging.info('Iteration: {}, {} level statistics:'.format(iteration, taxonomy_level))
 
             train_fin_time = time.time()
 
             # Evaluate on training data
             evaluator.evaluate(
                 data_type='train', 
-                submission_path=None, 
+                iteration=iteration, 
                 max_iteration=None)
 
             # Evaluate on validation data
             if holdout_fold != 'None':
                 evaluator.evaluate(
                     data_type='validate', 
-                    submission_path=None, 
+                    iteration=iteration, 
+                    submission_path=_temp_submission_path, 
+                    annotation_path=annotation_path, 
+                    yaml_path=yaml_path, 
                     max_iteration=None)
 
             train_time = train_fin_time - train_bgn_time
@@ -205,7 +224,7 @@ def inference_validation(args):
       dataset_dir: string, directory of dataset
       workspace: string, directory of workspace
       taxonomy_level: 'fine' | 'coarse'
-      model_type: string, e.g. 'Cnn_9layers'
+      model_type: string, e.g. 'Cnn_9layers_MaxPooling'
       iteration: int
       holdout_fold: '1' | 'none', where '1' indicates using validation and 
           'none' indicates using full data for training
@@ -257,6 +276,16 @@ def inference_validation(args):
         model_type, 'taxonomy_level={}'.format(taxonomy_level), 
         'holdout_fold={}'.format(holdout_fold), '{}_iterations.pth'.format(iteration))
     
+    submission_path = os.path.join(workspace, 'submissions', filename, 
+        '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
+        model_type, 'taxonomy_level={}'.format(taxonomy_level), 
+        'holdout_fold={}'.format(holdout_fold), 'submission.csv')
+    create_folder(os.path.dirname(submission_path))
+    
+    annotation_path = os.path.join(dataset_dir, 'annotations.csv')
+    
+    yaml_path = os.path.join(dataset_dir, 'dcase-ust-taxonomy.yaml')
+    
     logs_dir = os.path.join(workspace, 'logs', filename, args.mode, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
         'taxonomy_level={}'.format(taxonomy_level), 
@@ -295,7 +324,9 @@ def inference_validation(args):
     # Evaluate on validation data
     evaluator.evaluate(
         data_type='validate', 
-        submission_path=None, 
+        submission_path=submission_path, 
+        annotation_path=annotation_path, 
+        yaml_path=yaml_path, 
         max_iteration=None)
     
     # Visualize

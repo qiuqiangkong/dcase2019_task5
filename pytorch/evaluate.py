@@ -1,21 +1,24 @@
 import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../utils'))
+sys.path.insert(1, os.path.join(sys.path[0], '../evaluation_tools'))
 
 import numpy as np
 import time
 import logging
 import matplotlib.pyplot as plt
 from sklearn import metrics
+import _pickle as cPickle
 import sed_eval
 
-from utilities import get_filename, inverse_scale, get_labels
+from utilities import get_filename, inverse_scale, get_labels, write_submission_csv
 from pytorch_utils import forward
+import metrics as offical_metrics
 import config
 
 
 class Evaluator(object):
-    def __init__(self, model, data_generator, taxonomy_level, cuda=True, 
+    def __init__(self, model, data_generator, taxonomy_level, statistics_path, cuda=True, 
         verbose=False):
         '''Evaluator to evaluate prediction performance. 
         
@@ -23,6 +26,7 @@ class Evaluator(object):
           model: object
           data_generator: object
           taxonomy_level: 'fine' | 'coarse'
+          statistics_path: string
           cuda: bool
           verbose: bool
         '''
@@ -30,11 +34,19 @@ class Evaluator(object):
         self.model = model
         self.data_generator = data_generator
         self.taxonomy_level = taxonomy_level
+        self.statistics_path = statistics_path
         self.cuda = cuda
         self.verbose = verbose
         
         self.frames_per_second = config.frames_per_second
         self.labels = get_labels(taxonomy_level)
+        
+        self.statistics = {
+            'train': {'iteration': [], 'average_precision': [], 
+                'micro_auprc': [], 'micro_f1': [], 'macro_auprc': []}, 
+            'validate': {'iteration': [], 'average_precision': [], 
+                'micro_auprc': [], 'micro_f1': [], 'macro_auprc': []}
+            }
 
     def get_binary_target(self, target):
         '''Get binarized target. The original target is between 0 and 1
@@ -44,16 +56,20 @@ class Evaluator(object):
         the annotations are coherent. 
         '''
         
-        threshold = 0.099   # If at least one labeler labels the sound class
-                            # to be presence, then the target is set to 1. 
+        threshold = 0.001   # XOR of annotations
         return (np.sign(target - threshold) + 1) / 2
 
-    def evaluate(self, data_type, submission_path, max_iteration=None):
+    def evaluate(self, data_type, iteration, 
+        submission_path=None, annotation_path=None, yaml_path=None, 
+        max_iteration=None):
         '''Evaluate prediction performance. 
         
         Args:
           data_type: 'train' | 'validate'
+          iteration: int
           submission_path: None | string
+          annotation_path: None | string, path of ground truth csv
+          yaml_path: None | string, path of yaml file
           max_iteration: None | int, use maximum iteration of partial data for
               fast evaluation
         '''
@@ -73,18 +89,60 @@ class Evaluator(object):
         target = output_dict['{}_target'.format(self.taxonomy_level)]
         target = self.get_binary_target(target)
         
-        mAP = metrics.average_precision_score(target, output, average=None)
+        average_precision = metrics.average_precision_score(target, output, average=None)
         
         if self.verbose:
             logging.info('{} average precision:'.format(data_type))        
             for k, label in enumerate(self.labels):
-                logging.info('    {:<40}{:.3f}'.format(label, mAP[k]))
-            logging.info('    {:<40}{:.3f}'.format('Avg.', np.mean(mAP)))
+                logging.info('    {:<40}{:.3f}'.format(label, average_precision[k]))
+            logging.info('    {:<40}{:.3f}'.format('Average', np.mean(average_precision)))
         else:
-            logging.info('{} mAP: {:.3f}'.format(data_type, np.mean(mAP)))
+            logging.info('{}:'.format(data_type))
+            logging.info('    mAP: {:.3f}'.format(np.mean(average_precision)))
+
+        self.statistics[data_type]['iteration'].append(iteration)
+        self.statistics[data_type]['average_precision'].append(average_precision)
 
         #TODO
         # Write submission and evaluate with official evaluation tool
+        # https://github.com/sonyc-project/urban-sound-tagging-baseline
+        if submission_path:
+            write_submission_csv(
+                audio_names=output_dict['audio_name'], 
+                outputs=output, 
+                taxonomy_level=self.taxonomy_level, 
+                submission_path=submission_path)
+                
+            logging.info('    Write submission to {}'.format(submission_path))
+            
+            # The following code are from official evaluation code
+            df_dict = offical_metrics.evaluate(
+                prediction_path=submission_path,
+                annotation_path=annotation_path,
+                yaml_path=yaml_path,
+                mode=self.taxonomy_level)
+                            
+            micro_auprc, eval_df = offical_metrics.micro_averaged_auprc(
+                df_dict, return_df=True)
+                
+            macro_auprc, class_auprc = offical_metrics.macro_averaged_auprc(
+                df_dict, return_classwise=True)
+    
+            # Get index of first threshold that is at least 0.5
+            thresh_0pt5_idx = (eval_df['threshold'] >= 0.5).nonzero()[0][0]
+    
+            logging.info('    Official evaluation: ')
+            logging.info('    Micro AUPRC:           {:.3f}'.format(micro_auprc))
+            logging.info('    Micro F1-score (@0.5): {:.3f}'.format(eval_df['F'][thresh_0pt5_idx]))
+            logging.info('    Macro AUPRC:           {:.3f}'.format(macro_auprc))
+            
+            self.statistics[data_type]['micro_auprc'].append(micro_auprc)
+            self.statistics[data_type]['micro_f1'].append(eval_df['F'][thresh_0pt5_idx])
+            self.statistics[data_type]['macro_auprc'].append(macro_auprc)
+            
+        if self.statistics_path:
+            cPickle.dump(self.statistics, open(self.statistics_path, 'wb'))
+            logging.info('    Dump statistics to {}'.format(self.statistics_path))
     
     def visualize(self, data_type, max_iteration=None):
         '''Visualize the log mel spectrogram. 
