@@ -22,6 +22,76 @@ def init_bn(bn):
     bn.weight.data.fill_(1.)
     bn.running_var.data.fill_(1.)
     
+    
+class Cnn_5layers_AvgPooling(nn.Module):
+    
+    def __init__(self, classes_num):
+        super(Cnn_5layers_AvgPooling, self).__init__()
+
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=64,
+                              kernel_size=(5, 5), stride=(1, 1),
+                              padding=(2, 2), bias=False)
+        
+        self.conv2 = nn.Conv2d(in_channels=64, out_channels=128,
+                              kernel_size=(5, 5), stride=(1, 1),
+                              padding=(2, 2), bias=False)
+                              
+        self.conv3 = nn.Conv2d(in_channels=128, out_channels=256,
+                              kernel_size=(5, 5), stride=(1, 1),
+                              padding=(2, 2), bias=False)
+                              
+        self.conv4 = nn.Conv2d(in_channels=256, out_channels=512,
+                              kernel_size=(5, 5), stride=(1, 1),
+                              padding=(2, 2), bias=False)
+        
+        self.bn1 = nn.BatchNorm2d(64)
+        self.bn2 = nn.BatchNorm2d(128)
+        self.bn3 = nn.BatchNorm2d(256)
+        self.bn4 = nn.BatchNorm2d(512)
+
+        self.fc = nn.Linear(512, classes_num, bias=True)
+
+        self.init_weights()
+
+    def init_weights(self):
+        init_layer(self.conv1)
+        init_layer(self.conv2)
+        init_layer(self.conv3)
+        init_layer(self.conv4)
+        init_layer(self.fc)
+        
+        init_bn(self.bn1)
+        init_bn(self.bn2)
+        init_bn(self.bn3)
+        init_bn(self.bn4)
+
+    def forward(self, input):
+        '''
+        Input: (batch_size, times_steps, freq_bins)'''
+        
+        x = input[:, None, :, :]
+        '''(batch_size, 1, times_steps, freq_bins)'''
+        
+        x = F.relu_(self.bn1(self.conv1(x)))
+        x = F.avg_pool2d(x, kernel_size=(2, 2))
+        
+        x = F.relu_(self.bn2(self.conv2(x)))
+        x = F.avg_pool2d(x, kernel_size=(2, 2))
+        
+        x = F.relu_(self.bn3(self.conv3(x)))
+        x = F.avg_pool2d(x, kernel_size=(2, 2))
+        
+        x = F.relu_(self.bn4(self.conv4(x)))
+        x = F.avg_pool2d(x, kernel_size=(1, 1))
+        '''(batch_size, feature_maps, time_steps, freq_bins)'''
+        
+        x = torch.mean(x, dim=3)        # (batch_size, feature_maps, time_stpes)
+        (x, _) = torch.max(x, dim=2)    # (batch_size, feature_maps)
+        
+        output = torch.sigmoid(self.fc(x))
+        
+        return output
+    
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -66,7 +136,7 @@ class ConvBlock(nn.Module):
     
     
 class Cnn_9layers_MaxPooling(nn.Module):
-    def __init__(self, classes_num, strong_target_training=False):
+    def __init__(self, classes_num):
         
         super(Cnn_9layers_MaxPooling, self).__init__()
 
@@ -105,7 +175,7 @@ class Cnn_9layers_MaxPooling(nn.Module):
         
         
 class Cnn_9layers_AvgPooling(nn.Module):
-    def __init__(self, classes_num, strong_target_training=False):
+    def __init__(self, classes_num):
         
         super(Cnn_9layers_AvgPooling, self).__init__()
 
@@ -144,7 +214,7 @@ class Cnn_9layers_AvgPooling(nn.Module):
         
         
 class Cnn_13layers_AvgPooling(nn.Module):
-    def __init__(self, classes_num, strong_target_training=False):
+    def __init__(self, classes_num):
         
         super(Cnn_13layers_AvgPooling, self).__init__()
 

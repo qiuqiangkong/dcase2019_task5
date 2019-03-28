@@ -16,9 +16,9 @@ import torch.optim as optim
 from utilities import (create_folder, get_filename, create_logging, 
     load_scalar, get_labels)
 from data_generator import DataGenerator
-from models import Cnn_9layers_MaxPooling, Cnn_9layers_AvgPooling, Cnn_13layers_AvgPooling
+from models import Cnn_5layers_AvgPooling, Cnn_9layers_MaxPooling, Cnn_9layers_AvgPooling, Cnn_13layers_AvgPooling
 from losses import binary_cross_entropy
-from evaluate import Evaluator
+from evaluate import Evaluator, StatisticsContainer
 from pytorch_utils import move_data_to_gpu
 import config
 
@@ -87,11 +87,11 @@ def train(args):
         'holdout_fold={}'.format(holdout_fold), '_submission.csv')
     create_folder(os.path.dirname(_temp_submission_path))
     
-    statistics_path = os.path.join(workspace, 'statistics', filename, 
+    validate_statistics_path = os.path.join(workspace, 'statistics', filename, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
         model_type, 'taxonomy_level={}'.format(taxonomy_level), 
-        'holdout_fold={}'.format(holdout_fold), 'statistics.pickle')
-    create_folder(os.path.dirname(statistics_path))
+        'holdout_fold={}'.format(holdout_fold), 'validate_statistics.pickle')
+    create_folder(os.path.dirname(validate_statistics_path))
     
     annotation_path = os.path.join(dataset_dir, 'annotations.csv')
     
@@ -131,9 +131,11 @@ def train(args):
         model=model, 
         data_generator=data_generator, 
         taxonomy_level=taxonomy_level, 
-        statistics_path=statistics_path, 
         cuda=cuda, 
         verbose=False)
+        
+    # Statistics
+    validate_statistics_container = StatisticsContainer(validate_statistics_path)
     
     train_bgn_time = time.time()
     iteration = 0
@@ -149,20 +151,20 @@ def train(args):
             train_fin_time = time.time()
 
             # Evaluate on training data
-            evaluator.evaluate(
+            train_statistics = evaluator.evaluate(
                 data_type='train', 
-                iteration=iteration, 
                 max_iteration=None)
-
+            
             # Evaluate on validation data
             if holdout_fold != 'None':
-                evaluator.evaluate(
+                validate_statistics = evaluator.evaluate(
                     data_type='validate', 
-                    iteration=iteration, 
                     submission_path=_temp_submission_path, 
                     annotation_path=annotation_path, 
                     yaml_path=yaml_path, 
                     max_iteration=None)
+                    
+                validate_statistics_container.append_and_dump(iteration, validate_statistics)
 
             train_time = train_fin_time - train_bgn_time
             validate_time = time.time() - train_fin_time

@@ -9,6 +9,7 @@ import logging
 import matplotlib.pyplot as plt
 from sklearn import metrics
 import _pickle as cPickle
+import datetime
 import sed_eval
 
 from utilities import get_filename, inverse_scale, get_labels, write_submission_csv
@@ -18,7 +19,7 @@ import config
 
 
 class Evaluator(object):
-    def __init__(self, model, data_generator, taxonomy_level, statistics_path, cuda=True, 
+    def __init__(self, model, data_generator, taxonomy_level, cuda=True, 
         verbose=False):
         '''Evaluator to evaluate prediction performance. 
         
@@ -26,7 +27,6 @@ class Evaluator(object):
           model: object
           data_generator: object
           taxonomy_level: 'fine' | 'coarse'
-          statistics_path: string
           cuda: bool
           verbose: bool
         '''
@@ -34,19 +34,11 @@ class Evaluator(object):
         self.model = model
         self.data_generator = data_generator
         self.taxonomy_level = taxonomy_level
-        self.statistics_path = statistics_path
         self.cuda = cuda
         self.verbose = verbose
         
         self.frames_per_second = config.frames_per_second
         self.labels = get_labels(taxonomy_level)
-        
-        self.statistics = {
-            'train': {'iteration': [], 'average_precision': [], 
-                'micro_auprc': [], 'micro_f1': [], 'macro_auprc': []}, 
-            'validate': {'iteration': [], 'average_precision': [], 
-                'micro_auprc': [], 'micro_f1': [], 'macro_auprc': []}
-            }
 
     def get_binary_target(self, target):
         '''Get binarized target. The original target is between 0 and 1
@@ -59,14 +51,13 @@ class Evaluator(object):
         threshold = 0.001   # XOR of annotations
         return (np.sign(target - threshold) + 1) / 2
 
-    def evaluate(self, data_type, iteration, 
+    def evaluate(self, data_type, 
         submission_path=None, annotation_path=None, yaml_path=None, 
         max_iteration=None):
         '''Evaluate prediction performance. 
         
         Args:
           data_type: 'train' | 'validate'
-          iteration: int
           submission_path: None | string
           annotation_path: None | string, path of ground truth csv
           yaml_path: None | string, path of yaml file
@@ -100,10 +91,9 @@ class Evaluator(object):
             logging.info('{}:'.format(data_type))
             logging.info('    mAP: {:.3f}'.format(np.mean(average_precision)))
 
-        self.statistics[data_type]['iteration'].append(iteration)
-        self.statistics[data_type]['average_precision'].append(average_precision)
+        statistics = {}
+        statistics['average_precision'] = average_precision
 
-        #TODO
         # Write submission and evaluate with official evaluation tool
         # https://github.com/sonyc-project/urban-sound-tagging-baseline
         if submission_path:
@@ -136,13 +126,11 @@ class Evaluator(object):
             logging.info('    Micro F1-score (@0.5): {:.3f}'.format(eval_df['F'][thresh_0pt5_idx]))
             logging.info('    Macro AUPRC:           {:.3f}'.format(macro_auprc))
             
-            self.statistics[data_type]['micro_auprc'].append(micro_auprc)
-            self.statistics[data_type]['micro_f1'].append(eval_df['F'][thresh_0pt5_idx])
-            self.statistics[data_type]['macro_auprc'].append(macro_auprc)
+            statistics['micro_auprc'] = micro_auprc
+            statistics['micro_f1'] = eval_df['F'][thresh_0pt5_idx]
+            statistics['macro_auprc'] = macro_auprc
             
-        if self.statistics_path:
-            cPickle.dump(self.statistics, open(self.statistics_path, 'wb'))
-            logging.info('    Dump statistics to {}'.format(self.statistics_path))
+        return statistics
     
     def visualize(self, data_type, max_iteration=None):
         '''Visualize the log mel spectrogram. 
@@ -203,3 +191,20 @@ class Evaluator(object):
         fig.tight_layout(pad=0, w_pad=0, h_pad=0)
         plt.show()
     
+    
+class StatisticsContainer(object):
+    def __init__(self, statistics_path):
+        self.statistics_path = statistics_path
+
+        self.backup_statistics_path = '{}_{}.pickle'.format(
+            os.path.splitext(self.statistics_path)[0], datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+
+        self.statistics_list = []
+
+    def append_and_dump(self, iteration, statistics):
+        statistics['iteration'] = iteration
+        self.statistics_list.append(statistics)
+
+        cPickle.dump(self.statistics_list, open(self.statistics_path, 'wb'))
+        cPickle.dump(self.statistics_list, open(self.backup_statistics_path, 'wb'))
+        logging.info('    Dump statistics to {}'.format(self.statistics_path))

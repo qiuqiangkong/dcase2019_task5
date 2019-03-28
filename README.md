@@ -77,6 +77,13 @@ Model saved to /vol/vssp/msos/qk/workspaces/dcase2019_task5/models/main/logmel_6
 | *Official result* |         -        |          -         |
 | mAP             |       0.360      |        0.534       |
 
+**The fine results of different models are shown below.**
+
+<img src="https://github.com/qiuqiangkong/dcase2018_task5/blob/dev/appendixes/fine.png" width="800">
+
+**The coarse results of different models are shown below.**
+
+<img src="https://github.com/qiuqiangkong/dcase2018_task5/blob/dev/appendixes/coarse.png" width="800">
 
 ## Summary
 This codebase provides a convolutional neural network (CNN) for DCASE2019 Task5 Urban Sound Tagging. 
