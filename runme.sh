@@ -17,6 +17,9 @@ python utils/features.py calculate_feature_for_all_audio_files --dataset_dir=$DA
 # Calculate scalar
 python utils/features.py calculate_scalar --data_type='train' --workspace=$WORKSPACE
 
+
+############ Train and validate system on development dataset ############
+
 # Train & inference
 for TAXONOMY_LEVEL in 'fine' 'coarse'
 do
@@ -25,6 +28,17 @@ do
 
   # Inference
   CUDA_VISIBLE_DEVICES=$GPU_ID python pytorch/main.py inference_validation --dataset_dir=$DATASET_DIR --workspace=$WORKSPACE --taxonomy_level=$TAXONOMY_LEVEL --model_type=$MODEL_TYPE --holdout_fold=1 --iteration=5000 --batch_size=$BATCH_SIZE --cuda
+done
+
+# Plot statistics
+python utils/plot_results.py --workspace=$WORKSPACE --taxonomy_level=fine
+
+
+############ Train system on full development dataset without validation ############
+
+for TAXONOMY_LEVEL in 'fine' 'coarse'
+do
+  CUDA_VISIBLE_DEVICES=$GPU_ID python pytorch/main.py train --dataset_dir=$DATASET_DIR --workspace=$WORKSPACE --taxonomy_level=$TAXONOMY_LEVEL --model_type=$MODEL_TYPE --holdout_fold=none --batch_size=$BATCH_SIZE --cuda
 done
 
 ############ END ############

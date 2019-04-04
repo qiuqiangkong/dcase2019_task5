@@ -38,9 +38,9 @@ class DataGenerator(object):
         self.validate_data_dict = self.load_hdf5(validate_hdf5_path)
         
         # Combine train and validate data for training
-        if holdout_fold == 'None':
+        if holdout_fold == 'none':
             self.train_data_dict, self.validate_data_dict = \
-                self.get_full_train_data(
+                self.combine_train_validate_data(
                     self.train_data_dict, self.validate_data_dict)
         
         self.train_audio_indexes = np.arange(
@@ -55,9 +55,18 @@ class DataGenerator(object):
             len(self.train_audio_indexes)))            
         logging.info('Validation audio num: {}'.format(
             len(self.validate_audio_indexes)))
+            
+        self.random_state.shuffle(self.train_audio_indexes)
+        self.pointer = 0
         
     def load_hdf5(self, hdf5_path):
         '''Load hdf5 file. 
+        
+        Returns:
+          {'audio_name': (audios_num,), 
+           'feature': (audios_num, frames_num, mel_bins), 
+           (if exist) 'fine_target': (audios_num, classes_num), 
+           (if exist) 'coarse_target': (audios_num, classes_num)}
         '''
         data_dict = {}
         
@@ -77,7 +86,7 @@ class DataGenerator(object):
             
         return data_dict
         
-    def get_full_train_data(self, train_data_dict, validate_data_dict):
+    def combine_train_validate_data(self, train_data_dict, validate_data_dict):
         '''Combining train and validate data to full train data. 
         '''
         new_train_data_dict = {}
@@ -95,39 +104,38 @@ class DataGenerator(object):
         '''Generate mini-batch data for training. 
         
         Returns:
-          batch_data_dict: dict containing audio_name, feature, fine_target
-              and coarse_target
+          batch_data_dict: 
+            {'audio_name': (batch_size,), 
+             'feature': (batch_size, frames_num, mel_bins), 
+             (if exist) 'fine_target': (batch_size, classes_num), 
+             (if exist) 'coarse_target': (batch_size, classes_num)}
         '''
-        batch_size = self.batch_size
-        data_dict = self.train_data_dict
-        audio_indexes = np.array(self.train_audio_indexes)
-        self.random_state.shuffle(audio_indexes)
-        pointer = 0
-
         while True:
             # Reset pointer
-            if pointer >= len(audio_indexes):
-                pointer = 0
-                self.random_state.shuffle(audio_indexes)
+            if self.pointer >= len(self.train_audio_indexes):
+                self.pointer = 0
+                self.random_state.shuffle(self.train_audio_indexes)
 
             # Get batch audio_indexes
-            batch_audio_indexes = audio_indexes[pointer: pointer + batch_size]
-            pointer += batch_size
+            batch_audio_indexes = self.train_audio_indexes[
+                self.pointer: self.pointer + self.batch_size]
+                
+            self.pointer += self.batch_size
 
             batch_data_dict = {}
 
             batch_data_dict['audio_name'] = \
-                data_dict['audio_name'][batch_audio_indexes]
+                self.train_data_dict['audio_name'][batch_audio_indexes]
             
-            batch_feature = data_dict['feature'][batch_audio_indexes]
+            batch_feature = self.train_data_dict['feature'][batch_audio_indexes]
             batch_feature = self.transform(batch_feature)
             batch_data_dict['feature'] = batch_feature
             
             batch_data_dict['fine_target'] = \
-                data_dict['fine_target'][batch_audio_indexes]                
+                self.train_data_dict['fine_target'][batch_audio_indexes]                
                 
             batch_data_dict['coarse_target'] = \
-                data_dict['coarse_target'][batch_audio_indexes]
+                self.train_data_dict['coarse_target'][batch_audio_indexes]
             
             yield batch_data_dict
             
@@ -140,8 +148,11 @@ class DataGenerator(object):
               fast evaluation
         
         Returns:
-          batch_data_dict: dict containing audio_name, feature, fine_target
-              and coarse_target
+          batch_data_dict: 
+            {'audio_name': (batch_size,), 
+             'feature': (batch_size, frames_num, mel_bins), 
+             (if exist) 'fine_target': (batch_size, classes_num), 
+             (if exist) 'coarse_target': (batch_size, classes_num)}
         '''
         batch_size = self.batch_size
         

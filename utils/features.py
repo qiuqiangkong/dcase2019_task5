@@ -148,17 +148,18 @@ def read_metadata(metadata_path, data_type, mini_data):
         'audio_name': audio_names, 
         'fine_target': fine_targets, 
         'coarse_target': coarse_targets}
-                
+
     return meta_dict
 
 
 def calculate_feature_for_all_audio_files(args):
-    '''Calculate feature of audio files and write out features to a hdf5 file. 
+    '''Calculate feature of audio files and write out features to a single hdf5 
+    file. 
     
     Args:
       dataset_dir: string
-      data_type: 'train' | 'validate'
       workspace: string
+      data_type: 'train' | 'validate'
       mini_data: bool, set True for debugging on a small part of data
     '''
     
@@ -264,8 +265,8 @@ def calculate_scalar(args):
     '''Calculate and write out scalar of features. 
     
     Args:
-      data_type: 'train'
       workspace: string
+      data_type: 'train'
       mini_data: bool, set True for debugging on a small part of data
     '''
 
@@ -317,17 +318,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     subparsers = parser.add_subparsers(dest='mode')
 
+    # Calculate feature for all audio files
     parser_logmel = subparsers.add_parser('calculate_feature_for_all_audio_files')
-    parser_logmel.add_argument('--dataset_dir', type=str, required=True)
+    parser_logmel.add_argument('--dataset_dir', type=str, required=True, help='Directory of dataset.')
+    parser_logmel.add_argument('--workspace', type=str, required=True, help='Directory of your workspace.')
     parser_logmel.add_argument('--data_type', type=str, choices=['train', 'validate'], required=True)
-    parser_logmel.add_argument('--workspace', type=str, required=True)
-    parser_logmel.add_argument('--mini_data', action='store_true', default=False)
+    parser_logmel.add_argument('--mini_data', action='store_true', default=False, help='Set True for debugging on a small part of data.')
 
+    # Calculate scalar
     parser_scalar = subparsers.add_parser('calculate_scalar')
-    parser_scalar.add_argument('--data_type', type=str, choices=['train'], required=True)
-    parser_scalar.add_argument('--workspace', type=str, required=True)
-    parser_scalar.add_argument('--mini_data', action='store_true', default=False)
+    parser_scalar.add_argument('--data_type', type=str, choices=['train'], required=True, help='Scalar is calculated on train data.')
+    parser_scalar.add_argument('--workspace', type=str, required=True, help='Directory of your workspace.')
+    parser_scalar.add_argument('--mini_data', action='store_true', default=False, help='Set True for debugging on a small part of data.')
     
+    # Parse arguments
     args = parser.parse_args()
     
     if args.mode == 'calculate_feature_for_all_audio_files':

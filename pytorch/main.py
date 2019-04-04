@@ -77,20 +77,21 @@ def train(args):
         
     checkpoints_dir = os.path.join(workspace, 'checkpoints', filename, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
-        model_type, 'taxonomy_level={}'.format(taxonomy_level), 
-        'holdout_fold={}'.format(holdout_fold))
+        'taxonomy_level={}'.format(taxonomy_level), 
+        'holdout_fold={}'.format(holdout_fold), model_type)
     create_folder(checkpoints_dir)
     
     _temp_submission_path = os.path.join(workspace, '_temp_submissions', filename, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
-        model_type, 'taxonomy_level={}'.format(taxonomy_level), 
-        'holdout_fold={}'.format(holdout_fold), '_submission.csv')
+        'taxonomy_level={}'.format(taxonomy_level), 
+        'holdout_fold={}'.format(holdout_fold), model_type, '_submission.csv')
     create_folder(os.path.dirname(_temp_submission_path))
     
     validate_statistics_path = os.path.join(workspace, 'statistics', filename, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
-        model_type, 'taxonomy_level={}'.format(taxonomy_level), 
-        'holdout_fold={}'.format(holdout_fold), 'validate_statistics.pickle')
+        'taxonomy_level={}'.format(taxonomy_level), 
+        'holdout_fold={}'.format(holdout_fold), model_type, 
+        'validate_statistics.pickle')
     create_folder(os.path.dirname(validate_statistics_path))
     
     annotation_path = os.path.join(dataset_dir, 'annotations.csv')
@@ -100,9 +101,14 @@ def train(args):
     logs_dir = os.path.join(workspace, 'logs', filename, args.mode, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
         'taxonomy_level={}'.format(taxonomy_level), 
-        'holdout_fold={}'.format(holdout_fold))
+        'holdout_fold={}'.format(holdout_fold), model_type)
     create_logging(logs_dir, 'w')
     logging.info(args)
+
+    if cuda:
+        logging.info('Using GPU.')
+    else:
+        logging.info('Using CPU. Set --cuda flag to use GPU.')
 
     # Load scalar
     scalar = load_scalar(scalar_path)
@@ -146,17 +152,22 @@ def train(args):
         # Evaluate
         if iteration % 200 == 0:
             logging.info('------------------------------------')
-            logging.info('Iteration: {}, {} level statistics:'.format(iteration, taxonomy_level))
+            logging.info('Iteration: {}, {} level statistics:'.format(
+                iteration, taxonomy_level))
 
             train_fin_time = time.time()
 
             # Evaluate on training data
+            if mini_data:
+                raise Exception('`mini_data` flag must be set to False to use '
+                    'the official evaluation tool!')
+            
             train_statistics = evaluator.evaluate(
                 data_type='train', 
                 max_iteration=None)
             
             # Evaluate on validation data
-            if holdout_fold != 'None':
+            if holdout_fold != 'none':
                 validate_statistics = evaluator.evaluate(
                     data_type='validate', 
                     submission_path=_temp_submission_path, 
@@ -164,7 +175,8 @@ def train(args):
                     yaml_path=yaml_path, 
                     max_iteration=None)
                     
-                validate_statistics_container.append_and_dump(iteration, validate_statistics)
+                validate_statistics_container.append_and_dump(
+                    iteration, validate_statistics)
 
             train_time = train_fin_time - train_bgn_time
             validate_time = time.time() - train_fin_time
@@ -228,8 +240,7 @@ def inference_validation(args):
       taxonomy_level: 'fine' | 'coarse'
       model_type: string, e.g. 'Cnn_9layers_MaxPooling'
       iteration: int
-      holdout_fold: '1' | 'none', where '1' indicates using validation and 
-          'none' indicates using full data for training
+      holdout_fold: '1', which means using validation data
       batch_size: int
       cuda: bool
       mini_data: bool, set True for debugging on a small part of data
@@ -275,13 +286,14 @@ def inference_validation(args):
         
     checkpoint_path = os.path.join(workspace, 'checkpoints', filename, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
-        model_type, 'taxonomy_level={}'.format(taxonomy_level), 
-        'holdout_fold={}'.format(holdout_fold), '{}_iterations.pth'.format(iteration))
+        'taxonomy_level={}'.format(taxonomy_level), 
+        'holdout_fold={}'.format(holdout_fold), model_type, 
+        '{}_iterations.pth'.format(iteration))
     
     submission_path = os.path.join(workspace, 'submissions', filename, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
-        model_type, 'taxonomy_level={}'.format(taxonomy_level), 
-        'holdout_fold={}'.format(holdout_fold), 'submission.csv')
+        'taxonomy_level={}'.format(taxonomy_level), 
+        'holdout_fold={}'.format(holdout_fold), model_type, 'submission.csv')
     create_folder(os.path.dirname(submission_path))
     
     annotation_path = os.path.join(dataset_dir, 'annotations.csv')
@@ -291,7 +303,7 @@ def inference_validation(args):
     logs_dir = os.path.join(workspace, 'logs', filename, args.mode, 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
         'taxonomy_level={}'.format(taxonomy_level), 
-        'holdout_fold={}'.format(holdout_fold))
+        'holdout_fold={}'.format(holdout_fold), model_type)
     create_logging(logs_dir, 'w')
     logging.info(args)
         
@@ -341,26 +353,26 @@ if __name__ == '__main__':
     subparsers = parser.add_subparsers(dest='mode')
 
     parser_train = subparsers.add_parser('train')
-    parser_train.add_argument('--dataset_dir', type=str, required=True)
-    parser_train.add_argument('--workspace', type=str, required=True)
+    parser_train.add_argument('--dataset_dir', type=str, required=True, help='Directory of dataset.')
+    parser_train.add_argument('--workspace', type=str, required=True, help='Directory of your workspace.')
     parser_train.add_argument('--taxonomy_level', type=str, choices=['fine', 'coarse'], required=True)
-    parser_train.add_argument('--model_type', type=str, required=True)
+    parser_train.add_argument('--model_type', type=str, required=True, help='E.g., Cnn_9layers_AvgPooling.')
     parser_train.add_argument('--holdout_fold', type=str, choices=['1', 'none'], required=True)
     parser_train.add_argument('--batch_size', type=int, required=True)
     parser_train.add_argument('--cuda', action='store_true', default=False)
-    parser_train.add_argument('--mini_data', action='store_true', default=False)
+    parser_train.add_argument('--mini_data', action='store_true', default=False, help='Set True for debugging on a small part of data.')
     
     parser_inference_validation = subparsers.add_parser('inference_validation')
     parser_inference_validation.add_argument('--dataset_dir', type=str, required=True)
     parser_inference_validation.add_argument('--workspace', type=str, required=True)
     parser_inference_validation.add_argument('--taxonomy_level', type=str, choices=['fine', 'coarse'], required=True)
-    parser_inference_validation.add_argument('--model_type', type=str, required=True)
+    parser_inference_validation.add_argument('--model_type', type=str, required=True, help='E.g., Cnn_9layers_AvgPooling.')
     parser_inference_validation.add_argument('--holdout_fold', type=str, choices=['1'], required=True)
-    parser_inference_validation.add_argument('--iteration', type=int, required=True)
+    parser_inference_validation.add_argument('--iteration', type=int, required=True, help='Load model of this iteration.')
     parser_inference_validation.add_argument('--batch_size', type=int, required=True)
     parser_inference_validation.add_argument('--cuda', action='store_true', default=False)
-    parser_inference_validation.add_argument('--visualize', action='store_true', default=False)
-    parser_inference_validation.add_argument('--mini_data', action='store_true', default=False)
+    parser_inference_validation.add_argument('--visualize', action='store_true', default=False, help='Visualize log mel spectrogram of different sound classes.')
+    parser_inference_validation.add_argument('--mini_data', action='store_true', default=False, help='Set True for debugging on a small part of data.')
     
     args = parser.parse_args()
     args.filename = get_filename(__file__)

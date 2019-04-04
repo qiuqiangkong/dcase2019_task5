@@ -43,24 +43,22 @@ class Evaluator(object):
     def get_binary_target(self, target):
         '''Get binarized target. The original target is between 0 and 1
         representing the average annotations of labelers. Set a threshold to
-        binarize the target to either 0 or 1. Pay attention this function is
-        only used for validation. The evaluation data is manually verified and 
-        the annotations are coherent. 
-        '''
+        binarize the target to either 0 or 1. We set a small threshold 
+        simulates XOR operation of labels. 
+        '''        
         
         threshold = 0.001   # XOR of annotations
         return (np.sign(target - threshold) + 1) / 2
 
-    def evaluate(self, data_type, 
-        submission_path=None, annotation_path=None, yaml_path=None, 
-        max_iteration=None):
+    def evaluate(self, data_type, submission_path=None, 
+        annotation_path=None, yaml_path=None, max_iteration=None):
         '''Evaluate prediction performance. 
         
         Args:
           data_type: 'train' | 'validate'
-          submission_path: None | string
-          annotation_path: None | string, path of ground truth csv
-          yaml_path: None | string, path of yaml file
+          submission_path: None | string, path submission csv
+          annotation_path: None | string, path of reference csv
+          yaml_path: None | string, path of yaml taxonomy file
           max_iteration: None | int, use maximum iteration of partial data for
               fast evaluation
         '''
@@ -102,8 +100,6 @@ class Evaluator(object):
                 outputs=output, 
                 taxonomy_level=self.taxonomy_level, 
                 submission_path=submission_path)
-                
-            logging.info('    Write submission to {}'.format(submission_path))
             
             # The following code are from official evaluation code
             df_dict = offical_metrics.evaluate(
@@ -194,6 +190,11 @@ class Evaluator(object):
     
 class StatisticsContainer(object):
     def __init__(self, statistics_path):
+        '''Container of statistics during training. 
+        
+        Args:
+          statistics_path: string, path to write out
+        '''
         self.statistics_path = statistics_path
 
         self.backup_statistics_path = '{}_{}.pickle'.format(
@@ -202,6 +203,12 @@ class StatisticsContainer(object):
         self.statistics_list = []
 
     def append_and_dump(self, iteration, statistics):
+        '''Append statistics to container and dump the container. 
+        
+        Args:
+          iteration: int
+          statistics: dict of statistics
+        '''
         statistics['iteration'] = iteration
         self.statistics_list.append(statistics)
 
