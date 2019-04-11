@@ -96,7 +96,10 @@ The 9-CNN models perform slightly better than the 5-layer and 13-layer CNN.
 This codebase provides a convolutional neural network (CNN) for DCASE2019 Task5 Urban Sound Tagging. 
 
 ## Citation
-[1] To appear. 
+
+**If this codebase is helpful, please feel free to cite the following paper:**
+
+**[1] Qiuqiang Kong, Yin Cao, Turab Iqbal, Yong Xu, Wenwu Wang, Mark D. Plumbley. Cross-task learning for audio tagging, sound event detection and spatial localization: DCASE 2019 baseline systems. arXiv preprint arXiv:1904.03476 (2019).**
 
 ## FAQ
 If you met running out of GPU memory error, then try to reduce batch_size. 
