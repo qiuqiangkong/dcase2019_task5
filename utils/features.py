@@ -152,6 +152,17 @@ def read_metadata(metadata_path, data_type, mini_data):
     return meta_dict
 
 
+def read_evaluate_metadata(audios_dir, mini_data):
+    audio_names = sorted(os.listdir(audios_dir))
+
+    if mini_data:
+        audio_names = audio_names[0 : 10]
+
+    meta_dict = {'audio_name': audio_names}
+    
+    return meta_dict
+
+
 def calculate_feature_for_all_audio_files(args):
     '''Calculate feature of audio files and write out features to a single hdf5 
     file. 
@@ -159,7 +170,7 @@ def calculate_feature_for_all_audio_files(args):
     Args:
       dataset_dir: string
       workspace: string
-      data_type: 'train' | 'validate'
+      data_type: 'train' | 'validate' | 'evaluate'
       mini_data: bool, set True for debugging on a small part of data
     '''
     
@@ -186,7 +197,11 @@ def calculate_feature_for_all_audio_files(args):
         prefix = ''
         
     metadata_path = os.path.join(dataset_dir, 'annotations.csv')
-    audios_dir = os.path.join(dataset_dir, data_type)
+
+    if data_type in ['train', 'validate']:
+        audios_dir = os.path.join(dataset_dir, data_type)
+    elif data_type == 'evaluate':
+        audios_dir = os.path.join(dataset_dir, 'audio-eval')
     
     feature_path = os.path.join(workspace, 'features', 
         '{}logmel_{}frames_{}melbins'.format(prefix, frames_per_second, mel_bins), 
@@ -206,8 +221,11 @@ def calculate_feature_for_all_audio_files(args):
     print('Extracting features of all audio files ...')
     extract_time = time.time()
     
-    meta_dict = read_metadata(metadata_path, data_type, mini_data)
-    
+    if data_type in ['train', 'validate']:
+        meta_dict = read_metadata(metadata_path, data_type, mini_data)
+    elif data_type == 'evaluate':
+        meta_dict = read_evaluate_metadata(audios_dir, mini_data)
+
     # Hdf5 containing features and targets
     hf = h5py.File(feature_path, 'w')
 
@@ -242,7 +260,7 @@ def calculate_feature_for_all_audio_files(args):
         (audio, _) = read_audio(
             audio_path=audio_path, 
             target_fs=sample_rate)
-        
+
         # Pad or truncate audio recording
         audio = pad_truncate_sequence(audio, total_samples)
         
@@ -322,7 +340,7 @@ if __name__ == '__main__':
     parser_logmel = subparsers.add_parser('calculate_feature_for_all_audio_files')
     parser_logmel.add_argument('--dataset_dir', type=str, required=True, help='Directory of dataset.')
     parser_logmel.add_argument('--workspace', type=str, required=True, help='Directory of your workspace.')
-    parser_logmel.add_argument('--data_type', type=str, choices=['train', 'validate'], required=True)
+    parser_logmel.add_argument('--data_type', type=str, choices=['train', 'validate', 'evaluate'], required=True)
     parser_logmel.add_argument('--mini_data', action='store_true', default=False, help='Set True for debugging on a small part of data.')
 
     # Calculate scalar

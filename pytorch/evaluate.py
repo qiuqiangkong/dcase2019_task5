@@ -101,30 +101,31 @@ class Evaluator(object):
                 taxonomy_level=self.taxonomy_level, 
                 submission_path=submission_path)
             
-            # The following code are from official evaluation code
-            df_dict = offical_metrics.evaluate(
-                prediction_path=submission_path,
-                annotation_path=annotation_path,
-                yaml_path=yaml_path,
-                mode=self.taxonomy_level)
-                            
-            micro_auprc, eval_df = offical_metrics.micro_averaged_auprc(
-                df_dict, return_df=True)
+            if annotation_path:
+                # The following code are from official evaluation code
+                df_dict = offical_metrics.evaluate(
+                    prediction_path=submission_path,
+                    annotation_path=annotation_path,
+                    yaml_path=yaml_path,
+                    mode=self.taxonomy_level)
+                                
+                micro_auprc, eval_df = offical_metrics.micro_averaged_auprc(
+                    df_dict, return_df=True)
+                    
+                macro_auprc, class_auprc = offical_metrics.macro_averaged_auprc(
+                    df_dict, return_classwise=True)
+        
+                # Get index of first threshold that is at least 0.5
+                thresh_0pt5_idx = (eval_df['threshold'] >= 0.5).nonzero()[0][0]
+        
+                logging.info('    Official evaluation: ')
+                logging.info('    Micro AUPRC:           {:.3f}'.format(micro_auprc))
+                logging.info('    Micro F1-score (@0.5): {:.3f}'.format(eval_df['F'][thresh_0pt5_idx]))
+                logging.info('    Macro AUPRC:           {:.3f}'.format(macro_auprc))
                 
-            macro_auprc, class_auprc = offical_metrics.macro_averaged_auprc(
-                df_dict, return_classwise=True)
-    
-            # Get index of first threshold that is at least 0.5
-            thresh_0pt5_idx = (eval_df['threshold'] >= 0.5).nonzero()[0][0]
-    
-            logging.info('    Official evaluation: ')
-            logging.info('    Micro AUPRC:           {:.3f}'.format(micro_auprc))
-            logging.info('    Micro F1-score (@0.5): {:.3f}'.format(eval_df['F'][thresh_0pt5_idx]))
-            logging.info('    Macro AUPRC:           {:.3f}'.format(macro_auprc))
-            
-            statistics['micro_auprc'] = micro_auprc
-            statistics['micro_f1'] = eval_df['F'][thresh_0pt5_idx]
-            statistics['macro_auprc'] = macro_auprc
+                statistics['micro_auprc'] = micro_auprc
+                statistics['micro_f1'] = eval_df['F'][thresh_0pt5_idx]
+                statistics['macro_auprc'] = macro_auprc
             
         return statistics
     

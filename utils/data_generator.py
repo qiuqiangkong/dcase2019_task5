@@ -12,7 +12,42 @@ from utilities import scale
 import config
 
 
-class DataGenerator(object):
+class Base(object):
+    def __init__(self):
+        pass
+
+    def load_hdf5(self, hdf5_path):
+        '''Load hdf5 file. 
+        
+        Returns:
+          {'audio_name': (audios_num,), 
+           'feature': (audios_num, frames_num, mel_bins), 
+           (if exist) 'fine_target': (audios_num, classes_num), 
+           (if exist) 'coarse_target': (audios_num, classes_num)}
+        '''
+        data_dict = {}
+        
+        with h5py.File(hdf5_path, 'r') as hf:
+            data_dict['audio_name'] = np.array(
+                [audio_name.decode() for audio_name in hf['audio_name'][:]])
+
+            data_dict['feature'] = hf['feature'][:].astype(np.float32)
+            
+            if 'fine_target' in hf.keys():
+                data_dict['fine_target'] = \
+                    hf['fine_target'][:].astype(np.float32)
+
+            if 'coarse_target' in hf.keys():
+                data_dict['coarse_target'] = \
+                    hf['coarse_target'][:].astype(np.float32)                
+            
+        return data_dict
+
+    def transform(self, x):
+        return scale(x, self.scalar['mean'], self.scalar['std'])
+
+
+class DataGenerator(Base):
     
     def __init__(self, train_hdf5_path, validate_hdf5_path, holdout_fold, 
         scalar, batch_size, seed=1234):
@@ -58,33 +93,6 @@ class DataGenerator(object):
             
         self.random_state.shuffle(self.train_audio_indexes)
         self.pointer = 0
-        
-    def load_hdf5(self, hdf5_path):
-        '''Load hdf5 file. 
-        
-        Returns:
-          {'audio_name': (audios_num,), 
-           'feature': (audios_num, frames_num, mel_bins), 
-           (if exist) 'fine_target': (audios_num, classes_num), 
-           (if exist) 'coarse_target': (audios_num, classes_num)}
-        '''
-        data_dict = {}
-        
-        with h5py.File(hdf5_path, 'r') as hf:
-            data_dict['audio_name'] = np.array(
-                [audio_name.decode() for audio_name in hf['audio_name'][:]])
-
-            data_dict['feature'] = hf['feature'][:].astype(np.float32)
-            
-            if 'fine_target' in hf.keys():
-                data_dict['fine_target'] = \
-                    hf['fine_target'][:].astype(np.float32)
-
-            if 'coarse_target' in hf.keys():
-                data_dict['coarse_target'] = \
-                    hf['coarse_target'][:].astype(np.float32)                
-            
-        return data_dict
         
     def combine_train_validate_data(self, train_data_dict, validate_data_dict):
         '''Combining train and validate data to full train data. 
@@ -197,6 +205,55 @@ class DataGenerator(object):
                 data_dict['coarse_target'][batch_audio_indexes]
 
             yield batch_data_dict
+
+
+class TestDataGenerator(Base):
+    def __init__(self, hdf5_path, scalar, batch_size, seed=1234):
+        self.scalar = scalar
+        self.batch_size = batch_size
+        self.random_state = np.random.RandomState(seed)
+        
+        # Load training data
+        self.data_dict = self.load_hdf5(hdf5_path)
+
+        self.audio_indexes = np.arange(
+            len(self.data_dict['audio_name']))
+        
+        logging.info('Audio num to be inferenced: {}'.format(
+            len(self.audio_indexes)))
             
-    def transform(self, x):
-        return scale(x, self.scalar['mean'], self.scalar['std'])
+        self.pointer = 0
+
+    def generate(self, max_iteration=None):
+
+        batch_size = self.batch_size
+
+        data_dict = self.data_dict
+        audio_indexes = np.array(self.audio_indexes)
+
+        iteration = 0
+        pointer = 0
+        
+        while True:
+            if iteration == max_iteration:
+                break
+
+            # Reset pointer
+            if pointer >= len(audio_indexes):
+                break
+
+            # Get batch audio_indexes
+            batch_audio_indexes = audio_indexes[pointer: pointer + batch_size]                
+            pointer += batch_size
+            iteration += 1
+
+            batch_data_dict = {}
+
+            batch_data_dict['audio_name'] = \
+                data_dict['audio_name'][batch_audio_indexes]
+            
+            batch_feature = data_dict['feature'][batch_audio_indexes]
+            batch_feature = self.transform(batch_feature)
+            batch_data_dict['feature'] = batch_feature
+
+            yield batch_data_dict
